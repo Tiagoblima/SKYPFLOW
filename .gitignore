@@ -4,7 +4,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+glove.6B.300d.txt
 # C extensions
 *.so
 

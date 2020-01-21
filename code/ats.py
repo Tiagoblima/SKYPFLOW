@@ -105,7 +105,7 @@ sentences = []
 
 originals = []
 
-fp1 = open("glove/glove.6B.300d.txt", "r", encoding='utf-8')
+fp1 = open("../Resources/glove.6B.300d.txt", "r", encoding='utf-8')
 glove_emb = {}
 for line in fp1:
     temp = line.split(" ")
@@ -116,7 +116,7 @@ print("Embedding done")
 # %%
 essay_type = '4'
 
-fp = open("data/training_set_rel32.tsv", 'r', encoding="ascii", errors="ignore")
+fp = open("../Resources/training_set_rel32.tsv", 'r', encoding="ascii", errors="ignore")
 fp.readline()
 for line in fp:
     temp = line.split("\t")
@@ -129,7 +129,7 @@ print("range min - ", min(originals), " ; range max - ", max(originals))
 range_min = min(originals)
 range_max = max(originals)
 
-fp = open("data/training_set_rel3.tsv", 'r', encoding="ascii", errors="ignore")
+fp = open("../Resources/training_set_rel3.tsv", 'r', encoding="ascii", errors="ignore")
 fp.readline()
 sentences = []
 for line in fp:
