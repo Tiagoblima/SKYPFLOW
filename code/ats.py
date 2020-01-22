@@ -1,4 +1,6 @@
 # %%
+from sys import intern
+
 import keras.layers  as  klayers
 from keras.preprocessing.text import text_to_word_sequence
 from keras.preprocessing.sequence import pad_sequences
@@ -19,7 +21,9 @@ from keras.callbacks import EarlyStopping
 from keras import regularizers
 from keras import initializers
 from scipy import stats
-
+import uol_redacoes_xml
+import re
+import pdb
 
 # %%
 class Neural_Tensor_layer(Layer):
@@ -53,7 +57,7 @@ class Neural_Tensor_layer(Layer):
         std = 1.0
         k = self.output_dim
         d = self.input_dim
-        ##truncnorm generate continuous random numbers in given range
+        # truncnorm generate continuous random numbers in given range
         W_val = stats.truncnorm.rvs(-2 * std, 2 * std, loc=mean, scale=std, size=(k, d, d))
         V_val = stats.truncnorm.rvs(-2 * std, 2 * std, loc=mean, scale=std, size=(2 * d, k))
         self.W = K.variable(W_val)
@@ -105,7 +109,7 @@ sentences = []
 
 originals = []
 
-fp1 = open("Resources/glove.6B.300d.txt", "r", encoding='utf-8')
+fp1 = open("../Resources/glove_s300.txt", "r", encoding='utf-8')
 glove_emb = {}
 for line in fp1:
     temp = line.split(" ")
@@ -114,33 +118,32 @@ for line in fp1:
 print("Embedding done")
 
 # %%
-essay_type = '4'
 
-fp = open("Resources/training_set_rel32.tsv", 'r', encoding="ascii", errors="ignore")
-fp.readline()
-for line in fp:
-    temp = line.split("\t")
-    if temp[1] == essay_type:  # why only 4 ?? - evals in prompt specific fashion
-        originals.append(float(temp[6]))
-fp.close()
+essays = uol_redacoes_xml.load()
+prompts = set([re.sub(r'^https?:\/\/.*[\r\n]*', '', str(essay.prompt), flags=re.MULTILINE) for essay in essays])
+prompts = [prompt for prompt in enumerate(prompts)]
+
+essay_type = prompts[4][1]
+
+for essay in essays:
+    essay_prompt = re.sub(r'^https?:\/\/.*[\r\n]*', '', str(essay.prompt), flags=re.MULTILINE)
+    if intern(essay_prompt) == intern(essay_type):  # why only 4 ?? - evals in prompt specific fashion
+        originals.append(float(essay.criteria_scores['Competência 3']))
 
 print("range min - ", min(originals), " ; range max - ", max(originals))
 
 range_min = min(originals)
 range_max = max(originals)
 
-fp = open("Resources/training_set_rel32.tsv", 'r', encoding="ascii", errors="ignore")
-fp.readline()
-sentences = []
-for line in fp:
-    temp = line.split("\t")
-    if temp[1] == essay_type:  # why only 4 ?? - evals in prompt specific fashion
-        texts.append(temp[2])
-        labels.append((float(temp[6]) - range_min) / (range_max - range_min))  # why ??  - normalize to range [0-1]
-        line = temp[2].strip()
-        sentences.append(nltk.tokenize.word_tokenize(line))
 
-fp.close()
+sentences = []
+for essay in essays:
+    essay_prompt = re.sub(r'^https?:\/\/.*[\r\n]*', '', str(essay.prompt), flags=re.MULTILINE)
+    if intern(essay_prompt) == intern(essay_type):
+        texts.append(essay.text)
+        labels.append((float(essay.criteria_scores['Competência 3']) - range_min) / (range_max - range_min))  # why ??  - normalize to range [0-1]
+        line = essay.text.strip()
+        sentences.append(nltk.tokenize.word_tokenize(line))
 
 # %%
 labels
@@ -165,7 +168,7 @@ for i in sentences:
 tokenizer = Tokenizer()  # num_words=MAX_NB_WORDS) #limits vocabulary size
 tokenizer.fit_on_texts(texts)
 sequences = tokenizer.texts_to_sequences(texts)  # returns list of sequences
-word_index = tokenizer.word_index   # dictionary mapping
+word_index = tokenizer.word_index  # dictionary mapping
 print('Found %s unique tokens.' % len(word_index))
 
 data = pad_sequences(sequences, maxlen=MAX_SEQUENCE_LENGTH)
@@ -191,18 +194,17 @@ indices = np.arange(data.shape[0])
 np.random.shuffle(indices)
 data = data[indices]
 labels = labels[indices]
-#trad_feats = trad_feats[indices]
+# trad_feats = trad_feats[indices]
 validation_size = int(VALIDATION_SPLIT * data.shape[0])
 
 # %%
 x_train = data[:-validation_size]
 y_train = labels[:-validation_size]
-#trad_feats = trad_feats[:-validation_size]
+# trad_feats = trad_feats[:-validation_size]
 
-#trad_feats_val = trad_feats[-validation_size:]
+# trad_feats_val = trad_feats[-validation_size:]
 x_val = data[-validation_size:]
 y_val = labels[-validation_size:]
-
 
 # %%
 embedding_matrix = np.zeros((len(word_index) + 1, EMBEDDING_DIM))
@@ -213,7 +215,7 @@ for word, i in word_index.items():
         continue
     if word in glove_emb:
         embedding_matrix[i] = glove_emb[word]
-vocab_size = len(word_index)+1
+vocab_size = len(word_index) + 1
 
 # %%
 embedding_layer = Embedding(vocab_size, EMBEDDING_DIM, weights=[embedding_matrix],
@@ -285,7 +287,7 @@ y_pred = sf_1.predict([x_val])
 y_val_fin = [int(round(a * (range_max - range_min) + range_min)) for a in y_val]
 
 # %%
-y_pred_fin = [int(round(a * (range_max - range_min) + range_min)) for a in y_pred.reshape(58).tolist()]
+y_pred_fin = [int(round(a * (range_max - range_min) + range_min)) for a in y_pred.reshape(validation_size).tolist()]
 
 # %%
 print(cohen_kappa_score(y_val_fin, y_pred_fin, weights="quadratic"))

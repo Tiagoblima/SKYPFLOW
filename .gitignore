@@ -7,7 +7,7 @@ __pycache__/
 glove.6B.300d.txt
 # C extensions
 *.so
-
+glove_s300.txt
 # Distribution / packaging
 .Python
 build/
@@ -132,3 +132,4 @@ dmypy.json
 /.vscode/
 .vscode/
 Resources/model_output/
+/Resources/glove_s300.txt
